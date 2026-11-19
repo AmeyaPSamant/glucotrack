@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Inspector - GlucoTrack</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .sql-console {
+            background: #0f172a;
+            color: #f8fafc;
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            margin-bottom: 2rem;
+            font-family: monospace;
+        }
+        .sql-input {
+            width: 100%;
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #38bdf8;
+            font-family: Consolas, monospace;
+            font-size: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            margin: 0.75rem 0;
+            outline: none;
+        }
+        .sql-input:focus {
+            border-color: #38bdf8;
+        }
+        .db-badge {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-family: monospace;
+            font-weight: 600;
+        }
+        .export-btn {
+            background: #10b981;
+            color: white;
+        }
+        .export-btn:hover {
+            background: #059669;
+        }
+    </style>
+</head>
+<body>
+    <header class="navbar">
+        <a href="index.html" class="brand">
+            Gluco<span>Track</span>
+        </a>
+        <div class="user-nav">
+            <a href="dashboard.html" class="btn btn-outline" style="padding: 0.4rem 0.9rem; font-size: 0.85rem;">
+                Back to Dashboard
+            </a>
+            <button onclick="exportSQLFile()" class="btn export-btn" style="padding: 0.4rem 0.9rem; font-size: 0.85rem;">
+                Export Database (.sql)
+            </button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <h1 style="font-size: 1.8rem; font-weight: 800; color: #0f172a;">
+                    SQL Database Inspector
+                </h1>
+                <p style="color: #64748b; font-size: 0.95rem;">
+                    Relational database viewer connected to Java HttpServer and SQLite (<code>tracker.db</code>).
+                </p>
+            </div>
+            <div>
+                <span class="db-badge">Database: SQLite (tracker.db)</span>
+                <span id="serverStatusBadge" class="db-badge" style="background: #dcfce7; color: #15803d;">Status: Checking...</span>
+            </div>
+        </div>
+
+        <!-- Interactive SQL Query Runner -->
+        <div class="sql-console">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #94a3b8; font-size: 0.9rem;">Interactive SQL Console</span>
+                <span style="color: #64748b; font-size: 0.8rem;">Executes live queries against SQLite via JDBC</span>
+            </div>
+            <input type="text" id="customQuery" class="sql-input" value="SELECT * FROM sugar_logs" placeholder="Type SQL query (e.g. SELECT * FROM users)">
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <button onclick="runCustomQuery()" class="btn btn-primary" style="padding: 0.5rem 1.25rem; font-size: 0.88rem;">
+                    Execute Query
+                </button>
+                <button onclick="setQuery('SELECT * FROM users')" class="btn btn-outline" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; color: #cbd5e1; border-color: #334155;">
+                    Show users
+                </button>
+                <button onclick="setQuery('SELECT * FROM sugar_logs')" class="btn btn-outline" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; color: #cbd5e1; border-color: #334155;">
+                    Show sugar_logs
+                </button>
+                <button onclick="setQuery('SELECT * FROM sugar_logs WHERE sugar_level > 120')" class="btn btn-outline" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; color: #cbd5e1; border-color: #334155;">
+                    High readings (>120)
+                </button>
+                <button onclick="setQuery('SELECT AVG(sugar_level) FROM sugar_logs')" class="btn btn-outline" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; color: #cbd5e1; border-color: #334155;">
+                    Calculate AVG
+                </button>
+            </div>
+            <div id="queryOutput" style="margin-top: 1rem; display: none;"></div>
+        </div>
+
+        <!-- Table 1: users -->
+        <div class="card">
+            <div class="card-title">
+                <span>Table: <code>users</code></span>
+                <span id="usersCount" class="db-badge">0 rows</span>
+            </div>
+            <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
+                Schema: <code>users(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL)</code>
+            </p>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>id</th>
+                            <th>username</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr><td colspan="2" style="text-align:center; color:#94a3b8; padding: 1.5rem;">Loading users from SQL backend...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Table 2: sugar_logs -->
+        <div class="card">
+            <div class="card-title">
+                <span>Table: <code>sugar_logs</code></span>
+                <span id="logsCount" class="db-badge">0 rows</span>
+            </div>
+            <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
+                Schema: <code>sugar_logs(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, sugar_level REAL, reading_type TEXT, log_date TEXT, notes TEXT)</code>
+            </p>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>id</th>
+                            <th>username</th>
+                            <th>sugar_level (mg/dL)</th>
+                            <th>reading_type</th>
+                            <th>log_date</th>
+                            <th>notes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sugarLogsTableBody">
+                        <tr><td colspan="6" style="text-align:center; color:#94a3b8; padding: 1.5rem;">Loading readings from SQL backend...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="js/app.js"></script>
+    <script>
+        function loadDatabaseTables() {
+            const statusBadge = document.getElementById('serverStatusBadge');
+
+            fetch(API_BASE + '/api/db/tables')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        statusBadge.textContent = 'Status: Connected (Java + SQLite)';
+                        statusBadge.style.background = '#dcfce7';
+                        statusBadge.style.color = '#15803d';
+
+                        // Render Users
+                        const users = data.users || [];
+                        document.getElementById('usersCount').textContent = users.length + ' rows';
+                        const usersTbody = document.getElementById('usersTableBody');
+                        if (users.length === 0) {
+                            usersTbody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:#94a3b8; padding: 1.5rem;">No users registered yet.</td></tr>';
+                        } else {
+                            usersTbody.innerHTML = users.map(u => `
+                                <tr>
+                                    <td><code>${u.id}</code></td>
+                                    <td><strong>${u.username}</strong></td>
+                                </tr>
+                            `).join('');
+                        }
+
+                        // Render Sugar Logs
+                        const logs = data.sugar_logs || [];
+                        document.getElementById('logsCount').textContent = logs.length + ' rows';
+                        const logsTbody = document.getElementById('sugarLogsTableBody');
+                        if (logs.length === 0) {
+                            logsTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8; padding: 1.5rem;">No readings logged yet.</td></tr>';
+                        } else {
+                            logsTbody.innerHTML = logs.map(l => `
+                                <tr>
+                                    <td><code>${l.id}</code></td>
+                                    <td><strong>${l.username}</strong></td>
+                                    <td><span class="stat-badge badge-normal">${l.sugar_level} mg/dL</span></td>
+                                    <td>${l.reading_type}</td>
+                                    <td>${l.log_date}</td>
+                                    <td>${l.notes || '—'}</td>
+                                </tr>
+                            `).join('');
+                        }
+                    }
+                })
+                .catch(err => {
+                    statusBadge.textContent = 'Status: Server Offline';
+                    statusBadge.style.background = '#fee2e2';
+                    statusBadge.style.color = '#991b1b';
+                    document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="2" style="text-align:center; color:#ef4444; padding: 1.5rem;">Java backend is offline. Please run run.bat.</td></tr>';
+                    document.getElementById('sugarLogsTableBody').innerHTML = '<tr><td colspan="6" style="text-align:center; color:#ef4444; padding: 1.5rem;">Java backend is offline. Please run run.bat.</td></tr>';
+                });
+        }
+
+        function setQuery(q) {
+            document.getElementById('customQuery').value = q;
+            runCustomQuery();
+        }
+
+        function runCustomQuery() {
+            const q = document.getElementById('customQuery').value.trim();
+            const output = document.getElementById('queryOutput');
+            output.style.display = 'block';
+
+            if (!q) {
+                output.innerHTML = '<div style="color: #f87171;">Query cannot be empty.</div>';
+                return;
+            }
+
+            fetch(API_BASE + '/api/db/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: q })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.rows && data.rows.length > 0) {
+                        const cols = data.columns || Object.keys(data.rows[0]);
+                        let tableHtml = '<div style="overflow-x:auto; margin-top:0.75rem;"><table style="width:100%; font-size:0.85rem; border-collapse:collapse; background:#1e293b; color:#e2e8f0;"><thead><tr>';
+                        cols.forEach(c => tableHtml += `<th style="padding:0.5rem; border:1px solid #334155; text-align:left; color:#38bdf8;">${c}</th>`);
+                        tableHtml += '</tr></thead><tbody>';
+                        data.rows.forEach(r => {
+                            tableHtml += '<tr>';
+                            cols.forEach(c => tableHtml += `<td style="padding:0.5rem; border:1px solid #334155;">${r[c] !== undefined ? r[c] : ''}</td>`);
+                            tableHtml += '</tr>';
+                        });
+                        tableHtml += '</tbody></table></div>';
+                        output.innerHTML = `<div style="color:#34d399; font-weight:600; margin-bottom:0.25rem;">Returned ${data.rows.length} row(s):</div>` + tableHtml;
+                    } else if (data.message) {
+                        output.innerHTML = `<div style="color:#34d399; font-weight:600;">${data.message}</div>`;
+                    } else {
+                        output.innerHTML = '<div style="color: #94a3b8; padding: 0.5rem 0;">Query executed successfully. 0 rows returned.</div>';
+                    }
+                } else {
+                    output.innerHTML = `<div style="color:#f87171;">SQL Error: ${data.error || 'Failed to execute query.'}</div>`;
+                }
+            })
+            .catch(err => {
+                output.innerHTML = `<div style="color:#f87171;">Server communication error. Make sure the Java backend is running.</div>`;
+            });
+        }
+
+        function exportSQLFile() {
+            window.location.href = API_BASE + '/api/db/export';
+        }
+
+        document.addEventListener('DOMContentLoaded', loadDatabaseTables);
+    </script>
+</body>
+</html>

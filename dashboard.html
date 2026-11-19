@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - GlucoTrack</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="navbar">
+        <a href="dashboard.html" class="brand">
+            Gluco<span>Track</span>
+        </a>
+        <div class="user-nav">
+            <button onclick="shareToWhatsApp()" class="btn" style="padding: 0.4rem 0.85rem; font-size: 0.82rem; background: #25D366; color: white; font-weight: 600;">
+                WhatsApp (with Chart)
+            </button>
+            <button onclick="shareToEmail()" class="btn btn-outline" style="padding: 0.4rem 0.85rem; font-size: 0.82rem;">
+                Email
+            </button>
+            <a href="database.html" class="btn btn-outline" style="padding: 0.4rem 0.9rem; font-size: 0.85rem;">
+                View Database
+            </a>
+            <span style="font-weight: 600; color: #475569;">
+                User: <span id="userDisplayName">User</span>
+            </span>
+            <button onclick="logout()" class="btn btn-outline" style="padding: 0.4rem 0.9rem; font-size: 0.85rem;">
+                Logout
+            </button>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Top Stats Cards -->
+        <div class="stats-grid">
+            <!-- HbA1c Estimation Card -->
+            <div class="stat-card" style="border-left: 4px solid #2563eb;">
+                <div class="stat-header">
+                    <span>Estimated HbA1c</span>
+                    <span id="hba1cStatus" class="stat-badge badge-nodata">Calculating...</span>
+                </div>
+                <div class="stat-value" id="hba1cEstimate">--%</div>
+                <div style="font-size: 0.78rem; color: #64748b;">
+                    Formula: (Avg Glucose + 46.7) / 28.7
+                </div>
+            </div>
+
+            <!-- Average Glucose Card -->
+            <div class="stat-card" style="border-left: 4px solid #10b981;">
+                <div class="stat-header">
+                    <span>Average Glucose</span>
+                </div>
+                <div class="stat-value" id="avgGlucose">-- mg/dL</div>
+                <div style="font-size: 0.78rem; color: #64748b;">
+                    Target range: 70 - 140 mg/dL
+                </div>
+            </div>
+
+            <!-- Total Readings Card -->
+            <div class="stat-card" style="border-left: 4px solid #f59e0b;">
+                <div class="stat-header">
+                    <span>Total Logs</span>
+                </div>
+                <div class="stat-value" id="totalReadings">0</div>
+                <div style="font-size: 0.78rem; color: #64748b;">
+                    All recorded entries
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard Content Grid -->
+        <div class="dashboard-grid">
+            <!-- Left Column: Graph & History -->
+            <div>
+                <!-- Trend Chart -->
+                <div class="card">
+                    <div class="card-title">
+                        <span>Blood Sugar Trends</span>
+                        <span style="font-size: 0.82rem; font-weight: normal; color: #64748b;">Timeline Overview</span>
+                    </div>
+                    <div style="height: 280px; position: relative;">
+                        <canvas id="sugarTrendChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Past History Table -->
+                <div class="card">
+                    <div class="card-title">
+                        <span>Reading History</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date & Time</th>
+                                    <th>Level</th>
+                                    <th>Type</th>
+                                    <th>Notes</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logsTableBody">
+                                <tr>
+                                    <td colspan="5" style="text-align: center; color: #64748b; padding: 2rem;">
+                                        Loading logs...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Quick Add Form & Sharing -->
+            <div>
+                <div class="card">
+                    <div class="card-title">
+                        <span>+ Add New Reading</span>
+                    </div>
+                    <form id="addLogForm" onsubmit="handleAddLog(event)">
+                        <div class="form-group">
+                            <label for="sugarLevel">Glucose Level (mg/dL)</label>
+                            <input type="number" id="sugarLevel" class="form-control" placeholder="e.g. 115" min="20" max="600" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="readingType">Reading Type</label>
+                            <select id="readingType" class="form-control" required>
+                                <option value="Fasting">Fasting (Before Breakfast)</option>
+                                <option value="Post-Meal">Post-Meal (After Meal)</option>
+                                <option value="Pre-Meal">Pre-Meal (Before Lunch/Dinner)</option>
+                                <option value="Bedtime">Bedtime</option>
+                                <option value="Random">Random</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="logDate">Date & Time</label>
+                            <input type="datetime-local" id="logDate" class="form-control" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="notes">Notes (Optional)</label>
+                            <input type="text" id="notes" class="form-control" placeholder="e.g. After lunch, jogged 20m">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-block" style="margin-top: 1.5rem;">
+                            Save Reading
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Share Clinical Report Card -->
+                <div class="card" style="margin-top: 1.25rem;">
+                    <div class="card-title">
+                        <span>Share Clinical Report</span>
+                    </div>
+                    <p style="font-size: 0.84rem; color: #64748b; margin-bottom: 1rem;">
+                        Distribute your clinical HbA1c estimate, glucose records, and trend chart to your physician or healthcare provider.
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                        <button type="button" onclick="shareToWhatsApp()" class="btn btn-block" style="background: #25D366; color: white; font-weight: 600;">
+                            Share to WhatsApp (with Chart Image)
+                        </button>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                            <button type="button" onclick="shareToEmail()" class="btn" style="background: #0284c7; color: white; font-weight: 600; font-size: 0.85rem;">
+                                Share via Email
+                            </button>
+                            <button type="button" onclick="downloadChartImage()" class="btn btn-outline" style="font-size: 0.82rem;">
+                                Download Chart (PNG)
+                            </button>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                            <button type="button" onclick="copyChartImageToClipboard()" class="btn btn-outline" style="font-size: 0.82rem;">
+                                Copy Chart Image
+                            </button>
+                            <button type="button" onclick="copyReportToClipboard()" class="btn btn-outline" style="font-size: 0.82rem;">
+                                Copy Report Text
+                            </button>
+                        </div>
+                    </div>
+                    <div id="shareToast" style="display: none; text-align: center; color: #10b981; font-size: 0.82rem; margin-top: 0.6rem; font-weight: 600;">
+                        Report copied to clipboard.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Local Libraries -->
+    <script src="js/chart.min.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', initDashboard);
+    </script>
+</body>
+</html>

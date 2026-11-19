@@ -1,0 +1,12 @@
+# Byte-code
+*.class
+
+# Non-GlucoTrack folders / Lab Manuals
+AOA/
+FSJP Manual/
+Practical/
+*.pdf
+
+# OS generated files
+.DS_Store
+Thumbs.db
